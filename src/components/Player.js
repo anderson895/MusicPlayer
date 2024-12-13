@@ -1,46 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
+import Slider from '@react-native-community/slider';  // Updated import
 
 const Player = () => {
   const songs = [
-    { title: 'Song 1', uri: require('../../assets/songs/song1.mp3') },
-    { title: 'Song 2', uri: require('../../assets/songs/song2.mp3') },
-    { title: 'Song 3', uri: require('../../assets/songs/song3.mp3') },
+    { title: 'Karera.', uri: require('../../assets/songs/Karera.mp3') },
+    { title: 'Cherry On Top', uri: require('../../assets/songs/CherryOnTop.mp3') },
+    { title: 'Pantropiko', uri: require('../../assets/songs/Pantropiko.mp3') },
+    { title: 'Da Coconut Nut', uri: require('../../assets/songs/DaCoconutNut.mp3') },
   ];
 
   const [sound, setSound] = useState();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [position, setPosition] = useState(0);  // Current position in the song
+  const [duration, setDuration] = useState(0);  // Total song duration
 
-  // Load the sound when the component is mounted
   const loadSound = async (index) => {
-    setIsLoading(true);  // Start loading state
+    setIsLoading(true);
     try {
-      console.log('Loading song:', songs[index].uri);  // Log the song URI
-      const { sound } = await Audio.Sound.createAsync(songs[index].uri);
+      console.log('Loading song:', songs[index].uri);
+      const { sound, status } = await Audio.Sound.createAsync(songs[index].uri);
       setSound(sound);
-      setIsLoading(false); // Stop loading state after sound is loaded
+      setDuration(status.durationMillis);
+      setIsLoading(false);
+      sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
     } catch (error) {
-      setIsLoading(false);  // Stop loading state if error occurs
-      console.error('Error loading song:', error);  // Log the error
+      setIsLoading(false);
+      console.error('Error loading song:', error);
       Alert.alert('Error', 'Failed to load song');
+    }
+  };
+
+  const onPlaybackStatusUpdate = (status) => {
+    if (status.isLoaded) {
+      setPosition(status.positionMillis);
     }
   };
 
   useEffect(() => {
     loadSound(currentSongIndex);
-
-    // Unload the sound when switching songs or when the component unmounts
     return () => {
       if (sound) {
-        sound.unloadAsync();  // Unload the sound to free memory
+        sound.unloadAsync();
       }
     };
   }, [currentSongIndex]);
 
-  // Play or pause the sound
   const togglePlayback = async () => {
     if (isPlaying) {
       await sound.pauseAsync();
@@ -50,25 +58,45 @@ const Player = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Skip to the next song
-  const nextSong = () => {
+  const nextSong = async () => {
+    if (sound) {
+      await sound.stopAsync();
+    }
     const nextIndex = (currentSongIndex + 1) % songs.length;
     setCurrentSongIndex(nextIndex);
-    setIsPlaying(false);  // Stop the current song before loading the next one
+    setIsPlaying(false);
+
+    setTimeout(() => {
+      sound.playAsync();
+      setIsPlaying(true);
+    }, 500);
   };
 
-  // Skip to the previous song
-  const prevSong = () => {
+  const prevSong = async () => {
+    if (sound) {
+      await sound.stopAsync();
+    }
     const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
     setCurrentSongIndex(prevIndex);
-    setIsPlaying(false);  // Stop the current song before loading the previous one
+    setIsPlaying(false);
+
+    setTimeout(() => {
+      sound.playAsync();
+      setIsPlaying(true);
+    }, 500);
+  };
+
+  const seekToPosition = async (value) => {
+    if (sound) {
+      await sound.setPositionAsync(value);
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{songs[currentSongIndex].title}</Text>
       {isLoading ? (
-        <ActivityIndicator size="large" color="#197f14" />  // Loading spinner
+        <ActivityIndicator size="large" color="#197f14" />
       ) : (
         <View style={styles.controls}>
           <TouchableOpacity onPress={prevSong} style={styles.button} disabled={isLoading}>
@@ -82,6 +110,16 @@ const Player = () => {
           </TouchableOpacity>
         </View>
       )}
+      <Slider
+        style={styles.slider}
+        value={position}
+        minimumValue={0}
+        maximumValue={duration}
+        onValueChange={seekToPosition}
+        minimumTrackTintColor="#197f14"
+        maximumTrackTintColor="#000000"
+        thumbTintColor="#197f14"
+      />
     </View>
   );
 };
@@ -113,6 +151,10 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  slider: {
+    width: '80%',
+    marginTop: 20,
   },
 });
 
