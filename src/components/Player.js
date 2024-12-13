@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ImageBackground } from 'react-native';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 
-const Player = () => {
+const Player = ({ navigation }) => {
   const songs = [
     { title: 'Karera.', uri: require('../../assets/songs/Karera.mp3') },
     { title: 'Cherry On Top', uri: require('../../assets/songs/CherryOnTop.mp3') },
@@ -11,25 +11,24 @@ const Player = () => {
     { title: 'Da Coconut Nut', uri: require('../../assets/songs/DaCoconutNut.mp3') },
   ];
 
-  const [sound, setSound] = useState();
+  const soundRef = useRef();  // Using ref to store the sound object
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSongIndex, setCurrentSongIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [position, setPosition] = useState(0);  // Current position in the song
-  const [duration, setDuration] = useState(0);  // Total song duration
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const loadSound = async (index) => {
     setIsLoading(true);
     try {
       console.log('Loading song:', songs[index].uri);
       const { sound, status } = await Audio.Sound.createAsync(songs[index].uri);
-      setSound(sound);
+      soundRef.current = sound; // Storing sound in ref
       setDuration(status.durationMillis);
-      setPosition(0);  // Reset position on new song load
+      setPosition(0);
       setIsLoading(false);
       sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
 
-      // Auto-play when the next song is loaded
       if (isPlaying) {
         await sound.playAsync();
       }
@@ -48,38 +47,48 @@ const Player = () => {
 
   useEffect(() => {
     loadSound(currentSongIndex);
+
+    // Cleanup the sound when leaving the screen
+    const unsubscribe = navigation.addListener('blur', async () => {
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync(); // Unload the audio
+      }
+    });
+
     return () => {
-      if (sound) {
-        sound.unloadAsync();
+      unsubscribe();
+      if (soundRef.current) {
+        soundRef.current.unloadAsync(); // Cleanup if the component unmounts
       }
     };
-  }, [currentSongIndex]);
+  }, [currentSongIndex, navigation]);
 
   const togglePlayback = async () => {
     if (isPlaying) {
-      await sound.pauseAsync();
+      await soundRef.current.pauseAsync();
     } else {
-      await sound.playAsync();
+      await soundRef.current.playAsync();
     }
     setIsPlaying(!isPlaying);
   };
 
   const nextSong = async () => {
-    if (sound) {
-      await sound.stopAsync();
+    if (soundRef.current) {
+      await soundRef.current.stopAsync();
     }
     const nextIndex = (currentSongIndex + 1) % songs.length;
     setCurrentSongIndex(nextIndex);
     setIsPlaying(false);  // Stop playback until the next song loads
     setTimeout(() => {
       loadSound(nextIndex); // Load the next song correctly
-      setIsPlaying(true);  // Set playback to true once the song is loaded
+      setIsPlaying(true);
     }, 500);
   };
 
   const prevSong = async () => {
-    if (sound) {
-      await sound.stopAsync();
+    if (soundRef.current) {
+      await soundRef.current.stopAsync();
     }
     const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
     setCurrentSongIndex(prevIndex);
@@ -91,40 +100,45 @@ const Player = () => {
   };
 
   const seekToPosition = async (value) => {
-    if (sound) {
-      await sound.setPositionAsync(value);
+    if (soundRef.current) {
+      await soundRef.current.setPositionAsync(value);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{songs[currentSongIndex].title}</Text>
-      {isLoading ? (
-        <ActivityIndicator size="large" color="#197f14" />
-      ) : (
-        <View style={styles.controls}>
-          <TouchableOpacity onPress={prevSong} style={styles.button} disabled={isLoading}>
-            <Text style={styles.buttonText}>Previous</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={togglePlayback} style={styles.button} disabled={isLoading}>
-            <Text style={styles.buttonText}>{isPlaying ? 'Pause' : 'Play'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={nextSong} style={styles.button} disabled={isLoading}>
-            <Text style={styles.buttonText}>Next</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      <Slider
-        style={styles.slider}
-        value={position}
-        minimumValue={0}
-        maximumValue={duration}
-        onValueChange={seekToPosition}
-        minimumTrackTintColor="#197f14"
-        maximumTrackTintColor="#000000"
-        thumbTintColor="#197f14"
-      />
-    </View>
+    <ImageBackground
+      source={require('../../assets/biniBanner.jpg')}
+      style={styles.container}
+    >
+      <View style={styles.card}>
+        <Text style={styles.title}>{songs[currentSongIndex].title}</Text>
+        {isLoading ? (
+          <ActivityIndicator size="large" color="#197f14" />
+        ) : (
+          <View style={styles.controls}>
+            <TouchableOpacity onPress={prevSong} style={styles.button} disabled={isLoading}>
+              <Text style={styles.buttonText}>Previous</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={togglePlayback} style={styles.button} disabled={isLoading}>
+              <Text style={styles.buttonText}>{isPlaying ? 'Pause' : 'Play'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={nextSong} style={styles.button} disabled={isLoading}>
+              <Text style={styles.buttonText}>Next</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <Slider
+          style={styles.slider}
+          value={position}
+          minimumValue={0}
+          maximumValue={duration}
+          onValueChange={seekToPosition}
+          minimumTrackTintColor="#197f14"
+          maximumTrackTintColor="#000000"
+          thumbTintColor="#197f14"
+        />
+      </View>
+    </ImageBackground>
   );
 };
 
@@ -133,17 +147,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f1f1',
+    width: '100%',
+    height: '100%',
+  },
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 15,
+    padding: 20,
+    width: '90%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
+    elevation: 5,
   },
   title: {
     fontSize: 24,
+    color: '#333',
     marginBottom: 20,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    width: '80%',
+    width: '100%',
+    marginBottom: 20,
   },
   button: {
     backgroundColor: '#197f14',
@@ -157,8 +186,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   slider: {
-    width: '80%',
-    marginTop: 20,
+    width: '100%',
   },
 });
 
