@@ -8,7 +8,7 @@ const HomeScreen = ({ navigation }) => {
       style={styles.container}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome to my Music Player</Text>
+        <Text style={styles.title}>Welcome to Marlyn Music Player</Text>
         <Button 
           title="Go to Music Player"
           onPress={() => navigation.navigate('Player')}  // Navigate to the Player screen
