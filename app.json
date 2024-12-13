@@ -1,4 +1,22 @@
 {
-  "name": "MusicPlayerApp",
-  "displayName": "MusicPlayerApp"
+  "expo": {
+    "name": "MusicPlayerApp",
+    "slug": "musicplayerapp",
+    "sdkVersion": "52.0.0",
+    "platforms": ["ios", "android"],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "newArchEnabled": true 
+  }
 }
