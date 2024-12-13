@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Audio } from 'expo-av';
-import Slider from '@react-native-community/slider';  // Updated import
+import Slider from '@react-native-community/slider';
 
 const Player = () => {
   const songs = [
@@ -25,8 +25,14 @@ const Player = () => {
       const { sound, status } = await Audio.Sound.createAsync(songs[index].uri);
       setSound(sound);
       setDuration(status.durationMillis);
+      setPosition(0);  // Reset position on new song load
       setIsLoading(false);
       sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
+
+      // Auto-play when the next song is loaded
+      if (isPlaying) {
+        await sound.playAsync();
+      }
     } catch (error) {
       setIsLoading(false);
       console.error('Error loading song:', error);
@@ -64,11 +70,10 @@ const Player = () => {
     }
     const nextIndex = (currentSongIndex + 1) % songs.length;
     setCurrentSongIndex(nextIndex);
-    setIsPlaying(false);
-
+    setIsPlaying(false);  // Stop playback until the next song loads
     setTimeout(() => {
-      sound.playAsync();
-      setIsPlaying(true);
+      loadSound(nextIndex); // Load the next song correctly
+      setIsPlaying(true);  // Set playback to true once the song is loaded
     }, 500);
   };
 
@@ -79,9 +84,8 @@ const Player = () => {
     const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
     setCurrentSongIndex(prevIndex);
     setIsPlaying(false);
-
     setTimeout(() => {
-      sound.playAsync();
+      loadSound(prevIndex); // Load the previous song correctly
       setIsPlaying(true);
     }, 500);
   };
